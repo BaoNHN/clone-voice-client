@@ -11,5 +11,11 @@ dependencies = [
     "requests>=2.31.0",
 ]
 
+# "local" = run STT in this process (clone_voice_client/local_stt.py) instead of
+# calling clone-voice-station over HTTP. torch comes in transitively via
+# openai-whisper — same as clone-voice-station's own requirements.txt.
+[project.optional-dependencies]
+local = ["openai-whisper>=20231117"]
+
 [tool.setuptools.packages.find]
 include = ["clone_voice_client*"]

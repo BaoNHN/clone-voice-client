@@ -220,6 +220,24 @@ class VoiceStationClient:
         self._raise_for_response(resp)
         return resp.json()
 
+    def transcribe_local(self, filename: str, content: bytes, mime: str = None,
+                          language: str = "vi", hotwords: list = None) -> dict:
+        """Runs STT in this process (clone_voice_client/local_stt.py) instead of
+        calling this station over HTTP — requires `pip install clone-voice-client[local]`.
+        `hotwords` (e.g. loaded via local_stt.load_hotwords_from_pack() from a
+        .stt-pack.zip downloaded from the station's STT Lab) bias transcription
+        via Whisper's initial_prompt. Returns {"text": str, "language": str}."""
+        try:
+            from . import local_stt
+        except ImportError as e:
+            raise VoiceStationError(
+                "Chế độ local STT chưa được cài — chạy: pip install clone-voice-client[local]",
+                status_code=500,
+            ) from e
+        initial_prompt = ", ".join(hotwords) if hotwords else None
+        return local_stt.transcribe(content, mime=mime or "audio/webm", language=language,
+                                     initial_prompt=initial_prompt)
+
     # ── Speak (TTS + optional RVC) ───────────────────────────────────────────
     def speak(self, text: str, external_user_id: str, profile_id: int = None) -> dict:
         """Returns {"audio": bytes, "mime": str}."""
