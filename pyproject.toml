@@ -14,8 +14,10 @@ dependencies = [
 # "local" = run STT in this process (clone_voice_client/local_stt.py) instead of
 # calling clone-voice-station over HTTP. torch comes in transitively via
 # openai-whisper — same as clone-voice-station's own requirements.txt.
+# transformers/peft are for Tier 2 (LoRA-fine-tuned adapter) inference —
+# openai-whisper's own model class can't load a PEFT adapter, only HF's can.
 [project.optional-dependencies]
-local = ["openai-whisper>=20231117"]
+local = ["openai-whisper>=20231117", "transformers>=4.40.0", "peft>=0.11.0"]
 
 [tool.setuptools.packages.find]
 include = ["clone_voice_client*"]

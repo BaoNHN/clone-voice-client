@@ -95,8 +95,83 @@ def transcribe(audio_bytes: bytes, mime: str = "audio/webm", language: str = Non
         os.unlink(tmp_path)
 
 
-def load_hotwords_from_pack(zip_path: str) -> list:
-    """Reads hotwords.json out of a .stt-pack.zip downloaded from
-    clone-voice-station's STT Lab (GET /api/stt/adapters/{id}/download)."""
+def load_pack(zip_path: str) -> dict:
+    """Extracts a .stt-pack.zip downloaded from clone-voice-station's STT Lab
+    (GET /api/stt/adapters/{id}/download) into a sibling "<zip_path>_extracted"
+    directory and reads its manifest.
+
+    Returns {"tier": int, "base_model": str, "hotwords": list[str],
+    "adapter_dir": str | None}. adapter_dir is only set for a Tier 2 pack
+    (contains adapter_model.safetensors + adapter_config.json from a real
+    LoRA fine-tune) — a Tier 1 (hotword-only) pack leaves it None, and callers
+    should fall back to plain Whisper + hotword prompt-bias (see transcribe()).
+    """
+    extract_dir = f"{zip_path}_extracted"
+    os.makedirs(extract_dir, exist_ok=True)
     with zipfile.ZipFile(zip_path) as zf:
-        return json.loads(zf.read("hotwords.json"))
+        zf.extractall(extract_dir)
+
+    with open(os.path.join(extract_dir, "manifest.json"), encoding="utf-8") as f:
+        manifest = json.load(f)
+    with open(os.path.join(extract_dir, "hotwords.json"), encoding="utf-8") as f:
+        hotwords = json.load(f)
+
+    has_lora = os.path.exists(os.path.join(extract_dir, "adapter_model.safetensors"))
+    return {
+        "tier": manifest.get("tier", 1),
+        "base_model": manifest.get("base_model"),
+        "hotwords": hotwords,
+        "adapter_dir": extract_dir if has_lora else None,
+    }
+
+
+_HF_MODEL_BY_NAME = {"whisper-tiny": "openai/whisper-tiny", "whisper-base": "openai/whisper-base"}
+_lora_models = {}  # adapter_dir -> (processor, model, device), lazy-loaded per pack
+
+
+def _load_lora_model(base_model: str, adapter_dir: str):
+    if adapter_dir not in _lora_models:
+        import torch
+        from peft import PeftModel
+        from transformers import WhisperForConditionalGeneration, WhisperProcessor
+
+        hf_model_name = _HF_MODEL_BY_NAME.get(base_model)
+        if not hf_model_name:
+            raise ValueError(f"Unsupported base_model for LoRA inference: {base_model!r}")
+
+        processor = WhisperProcessor.from_pretrained(hf_model_name, language="vietnamese", task="transcribe")
+        base = WhisperForConditionalGeneration.from_pretrained(hf_model_name)
+        model = PeftModel.from_pretrained(base, adapter_dir)
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        model.to(device)
+        model.eval()
+        _lora_models[adapter_dir] = (processor, model, device)
+    return _lora_models[adapter_dir]
+
+
+def transcribe_with_lora(audio_bytes: bytes, base_model: str, adapter_dir: str,
+                          mime: str = "audio/webm", language: str = "vi") -> dict:
+    """Runs inference through a Tier 2 LoRA-fine-tuned adapter (transformers +
+    peft, not the openai-whisper package transcribe() above uses — PEFT only
+    attaches to the HF model class). Requires `pip install clone-voice-client[local]`
+    (which now also pulls in transformers + peft, see pyproject.toml)."""
+    import librosa
+    import torch
+
+    processor, model, device = _load_lora_model(base_model, adapter_dir)
+
+    with tempfile.NamedTemporaryFile(suffix=_suffix_for(mime), delete=False) as f:
+        f.write(audio_bytes)
+        tmp_path = f.name
+
+    try:
+        audio, _sr = librosa.load(tmp_path, sr=16000, mono=True)
+        input_features = processor.feature_extractor(
+            audio, sampling_rate=16000, return_tensors="pt"
+        ).input_features.to(device)
+        with torch.no_grad():
+            predicted_ids = model.generate(input_features)
+        text = processor.tokenizer.batch_decode(predicted_ids, skip_special_tokens=True)[0]
+        return {"text": text.strip(), "language": language or "vi"}
+    finally:
+        os.unlink(tmp_path)

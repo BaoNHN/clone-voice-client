@@ -221,12 +221,19 @@ class VoiceStationClient:
         return resp.json()
 
     def transcribe_local(self, filename: str, content: bytes, mime: str = None,
-                          language: str = "vi", hotwords: list = None) -> dict:
+                          language: str = "vi", hotwords: list = None, pack: dict = None) -> dict:
         """Runs STT in this process (clone_voice_client/local_stt.py) instead of
         calling this station over HTTP — requires `pip install clone-voice-client[local]`.
-        `hotwords` (e.g. loaded via local_stt.load_hotwords_from_pack() from a
-        .stt-pack.zip downloaded from the station's STT Lab) bias transcription
-        via Whisper's initial_prompt. Returns {"text": str, "language": str}."""
+
+        pack     : dict  Loaded via local_stt.load_pack() from a .stt-pack.zip
+                          downloaded off the station's STT Lab. If it's a Tier 2
+                          (LoRA fine-tune) pack, dispatches to LoRA inference;
+                          otherwise falls through to plain Whisper below, using
+                          the pack's own hotwords unless `hotwords` overrides them.
+        hotwords : list  Vocabulary bias for plain Whisper (Tier 1 / no pack) —
+                          passed straight through to Whisper's initial_prompt.
+
+        Returns {"text": str, "language": str}."""
         try:
             from . import local_stt
         except ImportError as e:
@@ -234,7 +241,15 @@ class VoiceStationClient:
                 "Chế độ local STT chưa được cài — chạy: pip install clone-voice-client[local]",
                 status_code=500,
             ) from e
-        initial_prompt = ", ".join(hotwords) if hotwords else None
+
+        if pack and pack.get("adapter_dir"):
+            return local_stt.transcribe_with_lora(
+                content, pack["base_model"], pack["adapter_dir"],
+                mime=mime or "audio/webm", language=language,
+            )
+
+        effective_hotwords = hotwords if hotwords is not None else (pack or {}).get("hotwords")
+        initial_prompt = ", ".join(effective_hotwords) if effective_hotwords else None
         return local_stt.transcribe(content, mime=mime or "audio/webm", language=language,
                                      initial_prompt=initial_prompt)
 
