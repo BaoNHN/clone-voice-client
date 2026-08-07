@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "clone-voice-client"
+version = "0.1.0"
+description = "HTTP client SDK for clone-voice-station — plug STT/TTS/RVC voice into any AI assistant without writing your own HTTP layer"
+requires-python = ">=3.9"
+dependencies = [
+    "requests>=2.31.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["clone_voice_client*"]
