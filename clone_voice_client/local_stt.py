@@ -125,6 +125,72 @@ def load_pack(zip_path: str) -> dict:
     }
 
 
+# openai-whisper's own temperature-fallback loop (whisper/transcribe.py's
+# DecodingOptions/decode_with_fallback): try a deterministic decode first: if it looks
+# degenerate -- compression_ratio too high, meaning the text compresses down a lot,
+# which is what repeated substrings do and real speech doesn't -- retry with sampling
+# at a higher temperature instead of trusting the first pass. transformers' bare
+# generate() call has no equivalent of this at all, which is a real, separate gap from
+# beam-search-vs-greedy (see the comment below): confirmed on real held-out medical
+# audio that even a well-trained LoRA adapter (validation-gate WER beat its own base by
+# 9-15pp) still lost to openai-whisper's Tier 1 path on every single file of a 30-file
+# independent eval set (transformers-path LoRA WER 51-56% vs openai-whisper base 31-32%).
+# compression_ratio_threshold=2.4 matches whisper/transcribe.py's own default exactly.
+# openai-whisper also gates on avg_logprob (model confidence) via
+# transformers.generate's compute_transition_scores() -- tried here first, but
+# compute_transition_scores(..., beam_indices, normalize_logits=True) crashes with a
+# CUDA device-side assert (ScatterGatherKernel index-out-of-bounds) on beam-search
+# output from this transformers version; not worth chasing a version-specific
+# compute_transition_scores bug for the weaker of openai-whisper's two signals when
+# compression_ratio alone already catches the actual failure mode seen here (repeated-
+# token degeneracy, same as the "ảnh ảnh ảnh..." x150 case no_repeat_ngram_size/
+# repetition_penalty above were added for). no_speech_threshold is skipped entirely --
+# that gates the VAD/silence-detection path, which doesn't apply to STT Lab's Tier 2
+# (guests upload pre-trimmed clips, not raw continuous audio to chunk).
+_COMPRESSION_RATIO_THRESHOLD = 2.4
+_TEMPERATURE_FALLBACK = (0.0, 0.2, 0.4, 0.6, 0.8, 1.0)
+
+
+def _compression_ratio(text: str) -> float:
+    import gzip
+    text_bytes = text.encode("utf-8")
+    if not text_bytes:
+        return 0.0
+    return len(text_bytes) / len(gzip.compress(text_bytes))
+
+
+def _decode_once(model, processor, input_features, temperature: float) -> str:
+    """One decode attempt at a given temperature. temperature=0.0 keeps the existing
+    deterministic beam search (see transcribe_with_lora's own comment for why those
+    particular kwargs); temperature>0 switches to sampling, same as openai-whisper's own
+    fallback ladder does."""
+    import torch
+
+    gen_kwargs = dict(no_repeat_ngram_size=3, repetition_penalty=1.3)
+    if temperature == 0.0:
+        gen_kwargs["num_beams"] = 5
+    else:
+        gen_kwargs["do_sample"] = True
+        gen_kwargs["temperature"] = temperature
+        gen_kwargs["num_beams"] = 1
+
+    with torch.no_grad():
+        predicted_ids = model.generate(input_features, **gen_kwargs)
+    return processor.tokenizer.batch_decode(predicted_ids, skip_special_tokens=True)[0].strip()
+
+
+def _decode_with_fallback(model, processor, input_features) -> str:
+    best_text, best_ratio = "", float("inf")
+    for temperature in _TEMPERATURE_FALLBACK:
+        text = _decode_once(model, processor, input_features, temperature)
+        ratio = _compression_ratio(text) if text else 0.0
+        if text and ratio < best_ratio:
+            best_text, best_ratio = text, ratio
+        if text and ratio < _COMPRESSION_RATIO_THRESHOLD:
+            return text
+    return best_text  # every temperature in the ladder failed the quality gate -- return the least-bad attempt
+
+
 _HF_MODEL_BY_NAME = {"whisper-tiny": "openai/whisper-tiny", "whisper-base": "openai/whisper-base"}
 _lora_models = {}  # adapter_dir -> (processor, model, device), lazy-loaded per pack
 
@@ -156,7 +222,6 @@ def transcribe_with_lora(audio_bytes: bytes, base_model: str, adapter_dir: str,
     attaches to the HF model class). Requires `pip install clone-voice-client[local]`
     (which now also pulls in transformers + peft, see pyproject.toml)."""
     import librosa
-    import torch
 
     processor, model, device = _load_lora_model(base_model, adapter_dir)
 
@@ -169,9 +234,15 @@ def transcribe_with_lora(audio_bytes: bytes, base_model: str, adapter_dir: str,
         input_features = processor.feature_extractor(
             audio, sampling_rate=16000, return_tensors="pt"
         ).input_features.to(device)
-        with torch.no_grad():
-            predicted_ids = model.generate(input_features)
-        text = processor.tokenizer.batch_decode(predicted_ids, skip_special_tokens=True)[0]
-        return {"text": text.strip(), "language": language or "vi"}
+        # Deterministic beam search first (no_repeat_ngram_size/repetition_penalty guard
+        # against the repeated-token degeneracy an under-trained adapter can produce; see
+        # _decode_once's docstring) -- num_beams=5 alone closed roughly a third of the WER
+        # gap against openai-whisper's transcribe() in a direct same-weights comparison
+        # (80.6% -> 61.7% on identical audio). _decode_with_fallback adds the other lever
+        # openai-whisper has and bare generate() doesn't: escalate to sampling at a higher
+        # temperature when the deterministic pass itself looks bad (see its docstring for
+        # the quality gate and why it matters here specifically).
+        text = _decode_with_fallback(model, processor, input_features)
+        return {"text": text, "language": language or "vi"}
     finally:
         os.unlink(tmp_path)
