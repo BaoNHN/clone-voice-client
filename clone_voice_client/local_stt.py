@@ -221,7 +221,16 @@ def transcribe_with_lora(audio_bytes: bytes, base_model: str, adapter_dir: str,
     peft, not the openai-whisper package transcribe() above uses — PEFT only
     attaches to the HF model class). Requires `pip install clone-voice-client[local]`
     (which now also pulls in transformers + peft, see pyproject.toml)."""
-    import librosa
+    # whisper.audio.load_audio, not librosa.load: librosa's soundfile backend can't
+    # decode webm/opus (a browser MediaRecorder's own container) at all, so every
+    # call silently fell through to librosa's deprecated audioread backend instead
+    # ("PySoundFile failed. Trying audioread instead." + a FutureWarning on every
+    # request) -- confirmed for real via voice-lab-example's server log. openai-whisper
+    # is already a hard dependency of this same [local] extra (see pyproject.toml), and
+    # its load_audio() shells out to ffmpeg directly -- the same decode path the
+    # sibling transcribe() above already uses without issue -- so this trades the
+    # fragile fallback chain for the one this SDK already relies on elsewhere.
+    from whisper.audio import load_audio
 
     processor, model, device = _load_lora_model(base_model, adapter_dir)
 
@@ -230,7 +239,7 @@ def transcribe_with_lora(audio_bytes: bytes, base_model: str, adapter_dir: str,
         tmp_path = f.name
 
     try:
-        audio, _sr = librosa.load(tmp_path, sr=16000, mono=True)
+        audio = load_audio(tmp_path, sr=16000)
         input_features = processor.feature_extractor(
             audio, sampling_rate=16000, return_tensors="pt"
         ).input_features.to(device)
