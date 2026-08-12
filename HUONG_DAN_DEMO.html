@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Huong Dan - clone-voice-client</title>
+<style>
+  :root {
+    --bg: #ffffff; --bg-alt: #f6f7f9; --text: #1c1f26; --text-dim: #5b6270;
+    --border: #e2e5ea; --accent: #2e5aac; --accent-soft: #eaf0fb;
+    --code-bg: #1c1f26; --code-text: #e8eaf0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a; --bg-alt: #1b1e24; --text: #e7e9ee; --text-dim: #9aa1ae;
+      --border: #2b2f38; --accent: #7fa6f5; --accent-soft: #1e2a42;
+      --code-bg: #0d0f13; --code-text: #e8eaf0;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.6; }
+  .layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); max-width: 1200px; margin: 0 auto; }
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; }
+    nav.toc { position: static !important; border-right: none !important; border-bottom: 1px solid var(--border); }
+  }
+  nav.toc { position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto;
+    padding: 28px 18px; border-right: 1px solid var(--border); background: var(--bg-alt); }
+  nav.toc .toclabel { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); margin: 0 0 12px; }
+  nav.toc ul { list-style: none; margin: 0; padding-left: 14px; }
+  nav.toc > ul { padding-left: 0; }
+  nav.toc li { margin: 1px 0; }
+  nav.toc a { display: block; padding: 6px 10px; border-radius: 6px; color: var(--text);
+    text-decoration: none; font-size: 13.5px; }
+  nav.toc a:hover { background: var(--accent-soft); color: var(--accent); }
+  main { padding: 40px 44px 100px; min-width: 0; }
+  main > .subtitle { color: var(--text-dim); margin: -4px 0 32px; font-size: 15px; }
+  h1 { font-size: 26px; margin: 0 0 6px; }
+  h2 { font-size: 20px; margin: 44px 0 14px; padding-top: 8px; border-top: 1px solid var(--border); }
+  main > h2:first-of-type { border-top: none; margin-top: 0; }
+  h3 { font-size: 16.5px; margin: 26px 0 8px; }
+  h4 { font-size: 14.5px; margin: 18px 0 6px; color: var(--text-dim); }
+  p { margin: 10px 0; }
+  a { color: var(--accent); }
+  code { background: var(--bg-alt); border: 1px solid var(--border); padding: 1px 6px;
+    border-radius: 4px; font-size: 13px; font-family: "Cascadia Code", Consolas, "Courier New", monospace; }
+  pre { background: var(--code-bg); color: var(--code-text); padding: 14px 16px; border-radius: 8px;
+    overflow-x: auto; font-size: 13px; line-height: 1.55;
+    font-family: "Cascadia Code", Consolas, "Courier New", monospace; }
+  pre code { background: none; border: none; padding: 0; color: inherit; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0 20px; font-size: 13.5px; display: block; overflow-x: auto; }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--bg-alt); }
+  blockquote { margin: 14px 0; padding: 10px 16px; border-left: 3px solid var(--accent);
+    background: var(--accent-soft); border-radius: 0 8px 8px 0; }
+  blockquote p { margin: 4px 0; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+  img { max-width: 100%; border-radius: 8px; border: 1px solid var(--border); }
+  footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--border);
+    color: var(--text-dim); font-size: 12.5px; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav class="toc">
+    <p class="toclabel">Muc luc</p>
+    <div class="toc">
+<ul>
+<li><a href="#huong-dan-clone-voice-client">Hướng Dẫn — clone-voice-client</a><ul>
+<li><a href="#muc-luc">Mục Lục</a></li>
+<li><a href="#1-ay-la-gi-ay-khong-phai-la-gi">1. Đây Là Gì / Đây KHÔNG Phải Là Gì</a></li>
+<li><a href="#2-cai-at">2. Cài Đặt</a></li>
+<li><a href="#3-cach-dung-co-ban">3. Cách Dùng Cơ Bản</a></li>
+<li><a href="#4-che-o-local-stt-tuy-chon">4. Chế Độ Local STT (tuỳ chọn)</a><ul>
+<li><a href="#dung-stt-pack-tai-tu-stt-lab-hotword-lora-fine-tune">Dùng STT pack tải từ STT Lab (hotword / LoRA fine-tune)</a></li>
+<li><a href="#model-size-ffmpeg">Model size &amp; ffmpeg</a></li>
+</ul>
+</li>
+<li><a href="#5-ai-ang-dung-thu-vien-nay">5. Ai Đang Dùng Thư Viện Này</a></li>
+<li><a href="#6-tai-lieu-api-ay-u">6. Tài Liệu API Đầy Đủ</a><ul>
+<li><a href="#khoi-tao">Khởi tạo</a></li>
+<li><a href="#kich-ban-ong-y-ho-so-giong-noi">Kịch bản / đồng ý / hồ sơ giọng nói</a></li>
+<li><a href="#mau-ghi-am-huan-luyen">Mẫu ghi âm &amp; huấn luyện</a></li>
+<li><a href="#nhan-dien-giong-noi-stt">Nhận diện giọng nói (STT)</a></li>
+<li><a href="#oc-to-ttsrvc">Đọc to (TTS/RVC)</a></li>
+<li><a href="#quan-tri-admin-api-cua-client-ban-khong-phai-dashboard-manager-cua-station">Quản trị (admin API — của client bạn, không phải dashboard manager của station)</a></li>
+<li><a href="#thong-bao-webhookpolling">Thông báo (webhook/polling)</a></li>
+<li><a href="#hang-so-loi">Hằng số &amp; lỗi</a></li>
+</ul>
+</li>
+<li><a href="#7-cau-truc-thu-muc">7. Cấu Trúc Thư Mục</a></li>
+<li><a href="#8-xu-ly-su-co">8. Xử Lý Sự Cố</a><ul>
+<li><a href="#pip-install-r-requirementstxt-bao-loi-lien-quan-clone-voice-client">pip install -r requirements.txt báo lỗi liên quan ../clone-voice-client</a></li>
+<li><a href="#goi-transcribe_local-bao-che-o-local-stt-chua-uoc-cai">Gọi transcribe_local() báo "Chế độ local STT chưa được cài"</a></li>
+<li><a href="#sua-code-trong-clone_voice_client-nhung-project-dung-no-khong-thay-thay-oi">Sửa code trong clone_voice_client/ nhưng project dùng nó không thấy thay đổi</a></li>
+<li><a href="#voicestationerror-khi-goi-bat-ky-ham-nao-transcribe-speak">VoiceStationError khi gọi bất kỳ hàm nào (.transcribe(), .speak(), ...)</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+
+  </nav>
+  <main>
+    <h1 id="huong-dan-clone-voice-client">Hướng Dẫn — clone-voice-client</h1>
+<blockquote>
+<p><strong>Đây là một thư viện Python (SDK), không phải một ứng dụng chạy được.</strong> Không có <code>app.py</code>, không có server, không có port riêng, không có gì để "khởi động". Thư mục này trông "trống" so với 3 project anh em (<code>rag-legal-assistant</code>, <code>clone-voice-station</code>, <code>voice-lab-example</code>) là <strong>chủ đích</strong>, không phải thiếu sót — nó chỉ tồn tại để 2 project kia <code>import</code> như một thư viện bình thường.</p>
+</blockquote>
+<hr />
+<h2 id="muc-luc">Mục Lục</h2>
+<ol>
+<li><a href="#1-đây-là-gì--đây-không-phải-là-gì">Đây Là Gì / Đây KHÔNG Phải Là Gì</a></li>
+<li><a href="#2-cài-đặt">Cài Đặt</a></li>
+<li><a href="#3-cách-dùng-cơ-bản">Cách Dùng Cơ Bản</a></li>
+<li><a href="#4-chế-độ-local-stt-tuỳ-chọn">Chế Độ Local STT (tuỳ chọn)</a></li>
+<li><a href="#5-ai-đang-dùng-thư-viện-này">Ai Đang Dùng Thư Viện Này</a></li>
+<li><a href="#6-tài-liệu-api-đầy-đủ">Tài Liệu API Đầy Đủ</a></li>
+<li><a href="#7-cấu-trúc-thư-mục">Cấu Trúc Thư Mục</a></li>
+<li><a href="#8-xử-lý-sự-cố">Xử Lý Sự Cố</a></li>
+</ol>
+<hr />
+<h2 id="1-ay-la-gi-ay-khong-phai-la-gi">1. Đây Là Gì / Đây KHÔNG Phải Là Gì</h2>
+<p><code>clone-voice-client</code> là <strong>HTTP client SDK cho <code>clone-voice-station</code></strong> — gói lại toàn bộ lời gọi HTTP tới service giọng nói (STT/TTS/RVC) thành các hàm Python bình thường, để một ứng dụng khách (host app) không phải tự viết lại lớp gọi HTTP đó.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>✅ Là gì</td>
+<td>Một thư viện Python (<code>pip install -e</code>), import và gọi hàm trực tiếp trong tiến trình của app đang dùng nó</td>
+</tr>
+<tr>
+<td>❌ Không phải là gì</td>
+<td>Một service/server độc lập — không có <code>app.py</code>, không lắng nghe port nào, không có terminal riêng để chạy</td>
+</tr>
+<tr>
+<td>Được dùng bởi</td>
+<td><code>rag-legal-assistant</code>, <code>voice-lab-example</code> (cài với extra <code>[local]</code>), và các script trong <code>clone-voice-station/tools/</code> (cài không kèm <code>[local]</code>)</td>
+</tr>
+<tr>
+<td>Bắt buộc nằm ở đâu</td>
+<td>Phải là thư mục <strong>anh em cùng cấp</strong> với các project dùng nó — cài qua đường dẫn tương đối <code>../clone-voice-client</code>, không phải từ PyPI</td>
+</tr>
+</tbody>
+</table>
+<p>Xem sơ đồ toàn hệ thống tại <code>clone-voice-station/HUONG_DAN_DEMO.html</code> (trang tổng hợp cho cả 4 project) để thấy rõ vị trí thư viện này trong kiến trúc chung.</p>
+<hr />
+<h2 id="2-cai-at">2. Cài Đặt</h2>
+<p>Thư viện này <strong>không tự cài</strong> — nó được cài gián tiếp khi bạn <code>pip install -r requirements.txt</code> ở một trong các project anh em, nhờ dòng:</p>
+<pre><code>-e ../clone-voice-client[local]     # rag-legal-assistant, voice-lab-example
+-e ../clone-voice-client            # clone-voice-station (chỉ dùng tools/, không cần [local])
+</code></pre>
+<p><code>-e</code> (editable install) nghĩa là pip trỏ thẳng vào mã nguồn thư mục này thay vì copy — sửa code ở đây có hiệu lực ngay cho mọi project đang dùng nó, không cần cài lại.</p>
+<p><strong>Yêu cầu cấu trúc thư mục</strong> (bắt buộc, xem thêm <code>HUONG_DAN_CHAY_TOAN_HE_THONG.md</code> ở <code>clone-voice-station</code>):</p>
+<pre><code>D:\hoc\project\
+├── clone-voice-client\      ← thư mục này
+├── clone-voice-station\
+├── rag-legal-assistant\
+└── voice-lab-example\
+</code></pre>
+<p>Thiếu thư mục này ở đúng vị trí anh em → <code>pip install -r requirements.txt</code> ở 2 project kia báo lỗi "path not found" ngay bước cài, và cả 2 app đều không chạy được.</p>
+<p><strong>Extra <code>[local]</code></strong> thêm <code>openai-whisper</code>, <code>transformers</code>, <code>peft</code> (kéo theo <code>torch</code>) — chỉ cần khi host app muốn chạy STT <strong>ngay trong tiến trình của nó</strong> thay vì gọi qua mạng tới <code>clone-voice-station</code> (mục 4). Không cần extra này nếu chỉ gọi API từ xa.</p>
+<hr />
+<h2 id="3-cach-dung-co-ban">3. Cách Dùng Cơ Bản</h2>
+<pre><code class="language-python">from clone_voice_client import VoiceStationClient
+
+client = VoiceStationClient.from_key_file(&quot;voice_station_key.txt&quot;)
+# hoặc: VoiceStationClient(base_url=&quot;http://127.0.0.1:8090&quot;, api_key=&quot;...&quot;)
+# hoặc bỏ trống cả 2 tham số: tự đọc từ biến môi trường VOICE_STATION_URL / VOICE_STATION_API_KEY
+
+client.record_voice_consent(external_user_id)
+audio = client.speak(&quot;Xin chào!&quot;, external_user_id)[&quot;audio&quot;]
+</code></pre>
+<ul>
+<li><code>external_user_id</code> là một chuỗi bất kỳ do host app tự chọn để định danh người dùng của mình (VD <code>str(user_id)</code> trong database riêng) — <code>clone-voice-station</code> không có khái niệm tài khoản người dùng thật, chỉ phân biệt theo cặp (API key, <code>external_user_id</code>).</li>
+<li>Toàn bộ lời gọi phía sau đều là HTTP request thật tới một <code>clone-voice-station</code> đang chạy (mặc định <code>http://127.0.0.1:8090</code>) — cần service đó sống thì các hàm này mới trả kết quả đúng (xem <code>clone-voice-station/terminal.txt</code>).</li>
+</ul>
+<hr />
+<h2 id="4-che-o-local-stt-tuy-chon">4. Chế Độ Local STT (tuỳ chọn)</h2>
+<p>Thay vì gọi <code>client.transcribe(...)</code> (đi qua mạng tới <code>clone-voice-station</code>), có thể chạy Whisper <strong>ngay trong tiến trình của host app</strong>, không gọi mạng — cần cài với extra <code>[local]</code>.</p>
+<pre><code class="language-python"># Cách 1: qua VoiceStationClient (tự kiểm tra [local] đã cài chưa)
+result = client.transcribe_local(filename, content, mime=mime, language=&quot;vi&quot;)
+
+# Cách 2: gọi thẳng module local_stt (VoiceStationClient.transcribe_local() cũng chỉ gọi vào đây)
+from clone_voice_client import local_stt
+
+result = local_stt.transcribe(audio_bytes, mime=&quot;audio/webm&quot;, language=&quot;vi&quot;)
+# result = {&quot;text&quot;: &quot;...&quot;, &quot;language&quot;: &quot;vi&quot;}
+</code></pre>
+<p>Nếu chưa cài <code>[local]</code> mà gọi <code>transcribe_local()</code>, lỗi trả về rõ ràng: <code>"Chế độ local STT chưa được cài — chạy: pip install clone-voice-client[local]"</code>.</p>
+<h3 id="dung-stt-pack-tai-tu-stt-lab-hotword-lora-fine-tune">Dùng STT pack tải từ STT Lab (hotword / LoRA fine-tune)</h3>
+<pre><code class="language-python">pack = local_stt.load_pack(zip_path)          # giải nén .stt-pack.zip, đọc manifest.json
+result = local_stt.transcribe_with_lora(       # nếu pack là Tier 2 (LoRA)
+    audio_bytes, base_model=pack[&quot;base_model&quot;], adapter_dir=pack[&quot;adapter_dir&quot;]
+)
+</code></pre>
+<p><code>.stt-pack.zip</code> tải về từ <code>clone-voice-station</code>'s trang <code>/stt-lab</code> (Tier 1 = hotword bias, Tier 2 = LoRA fine-tune thật) — xem <code>clone-voice-station/HUONG_DAN_DEMO.html</code>.</p>
+<h3 id="model-size-ffmpeg">Model size &amp; ffmpeg</h3>
+<ul>
+<li>Biến môi trường <code>CLONE_VOICE_LOCAL_MODEL</code> chọn kích cỡ Whisper (<code>tiny</code>/<code>base</code>/<code>small</code>/<code>medium</code>, mặc định <code>small</code>).</li>
+<li>Biến môi trường <code>CLONE_VOICE_FFMPEG_DIR</code> trỏ tới một bản ffmpeg tĩnh nếu ffmpeg hệ thống lỗi (thư viện này <strong>không</strong> đóng gói sẵn ffmpeg riêng — chỉ đọc biến môi trường này nếu host app tự set).</li>
+</ul>
+<hr />
+<h2 id="5-ai-ang-dung-thu-vien-nay">5. Ai Đang Dùng Thư Viện Này</h2>
+<table>
+<thead>
+<tr>
+<th>Project</th>
+<th>Cài kèm <code>[local]</code>?</th>
+<th>Dùng để làm gì</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>rag-legal-assistant</code> (<code>voice/station_client.py</code>)</td>
+<td>Có</td>
+<td>Bọc <code>VoiceStationClient</code> thành các hàm module-level (<code>station_client.speak(...)</code> v.v.) để phần còn lại của app gọi như cũ; dùng <code>local_stt</code> khi admin bật chế độ STT local (xem <code>admin_voice_models.html</code>)</td>
+</tr>
+<tr>
+<td><code>voice-lab-example</code> (<code>app.py</code>)</td>
+<td>Có</td>
+<td>Minh hoạ trực tiếp 2 đường transcribe — local (<code>local_stt</code>) vs remote (<code>VoiceStationClient.transcribe()</code>) — trên cùng một trang <code>/compare</code></td>
+</tr>
+<tr>
+<td><code>clone-voice-station</code> (<code>tools/test_stt.py</code>, <code>tools/eval_stt_wer.py</code>)</td>
+<td>Không (chỉ cần đường remote)</td>
+<td>Script CLI tự kiểm thử/đánh giá WER — gọi vào chính <code>/api/transcribe</code> của service này như một client bên ngoài (dogfooding)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-tai-lieu-api-ay-u">6. Tài Liệu API Đầy Đủ</h2>
+<p>Class chính: <code>VoiceStationClient</code> (<code>clone_voice_client/client.py</code>). Import từ package gốc: <code>from clone_voice_client import VoiceStationClient, VoiceStationError, MIN_TRAIN_SAMPLES, MAX_CLONED_VOICES_PER_USER</code>.</p>
+<h3 id="khoi-tao">Khởi tạo</h3>
+<table>
+<thead>
+<tr>
+<th>Hàm</th>
+<th>Mô tả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>VoiceStationClient(base_url=None, api_key=None, *, request_timeout=15, speak_timeout=30, upload_timeout=30)</code></td>
+<td><code>base_url</code>/<code>api_key</code> bỏ trống thì tự đọc biến môi trường <code>VOICE_STATION_URL</code> / <code>VOICE_STATION_API_KEY</code></td>
+</tr>
+<tr>
+<td><code>VoiceStationClient.from_key_file(key_path, **kwargs)</code></td>
+<td>Đọc API key từ file (VD <code>voice_station_key.txt</code>, đã gitignore)</td>
+</tr>
+<tr>
+<td><code>.get_own_api_key()</code></td>
+<td>Trả lại API key đang dùng</td>
+</tr>
+<tr>
+<td><code>.is_available()</code></td>
+<td><code>True</code>/<code>False</code> — ping <code>/api/health</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="kich-ban-ong-y-ho-so-giong-noi">Kịch bản / đồng ý / hồ sơ giọng nói</h3>
+<table>
+<thead>
+<tr>
+<th>Hàm</th>
+<th>Mô tả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.get_scripts()</code></td>
+<td>Kịch bản đọc mẫu để thu âm</td>
+</tr>
+<tr>
+<td><code>.has_voice_consent(external_user_id)</code></td>
+<td>Trả <code>False</code> nếu không kết nối được station (an toàn, không raise)</td>
+</tr>
+<tr>
+<td><code>.record_voice_consent(external_user_id)</code></td>
+<td>Ghi nhận đồng ý thu âm</td>
+</tr>
+<tr>
+<td><code>.list_voice_profiles(external_user_id)</code></td>
+<td>Danh sách giọng (builtin + của người dùng này)</td>
+</tr>
+<tr>
+<td><code>.create_voice_profile(external_user_id, name)</code></td>
+<td>Tạo hồ sơ giọng mới, trả về <code>profile_id</code></td>
+</tr>
+<tr>
+<td><code>.update_voice_profile(profile_id, external_user_id, name=None, is_default=None)</code></td>
+<td>Đổi tên / đặt mặc định</td>
+</tr>
+<tr>
+<td><code>.delete_voice_profile(profile_id, external_user_id)</code></td>
+<td>Xoá giọng của chính người dùng</td>
+</tr>
+<tr>
+<td><code>.get_voice_profile_status(profile_id, external_user_id)</code></td>
+<td>Trạng thái huấn luyện</td>
+</tr>
+</tbody>
+</table>
+<h3 id="mau-ghi-am-huan-luyen">Mẫu ghi âm &amp; huấn luyện</h3>
+<table>
+<thead>
+<tr>
+<th>Hàm</th>
+<th>Mô tả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.upload_voice_sample(profile_id, external_user_id, script_id, filename, content: bytes)</code></td>
+<td>Upload 1 đoạn ghi âm</td>
+</tr>
+<tr>
+<td><code>.list_voice_samples(profile_id, external_user_id)</code></td>
+<td>Danh sách mẫu đã ghi</td>
+</tr>
+<tr>
+<td><code>.delete_voice_sample(profile_id, sample_id, external_user_id)</code></td>
+<td>Xoá 1 mẫu</td>
+</tr>
+<tr>
+<td><code>.train_voice_profile(profile_id, external_user_id)</code></td>
+<td>Bắt đầu huấn luyện (chạy nền phía station)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="nhan-dien-giong-noi-stt">Nhận diện giọng nói (STT)</h3>
+<table>
+<thead>
+<tr>
+<th>Hàm</th>
+<th>Mô tả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.transcribe(filename, content: bytes, mime=None, language="vi")</code></td>
+<td>Gọi <code>/api/transcribe</code> từ xa. Trả <code>{"text","language","segments"}</code>. Không cần consent — chỉ là ASR thuần</td>
+</tr>
+<tr>
+<td><code>.transcribe_local(filename, content: bytes, mime=None, language="vi", hotwords=None, pack=None)</code></td>
+<td>Chạy Whisper ngay trong tiến trình (mục 4), cần extra <code>[local]</code>. Trả <code>{"text","language"}</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="oc-to-ttsrvc">Đọc to (TTS/RVC)</h3>
+<table>
+<thead>
+<tr>
+<th>Hàm</th>
+<th>Mô tả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.speak(text, external_user_id, profile_id=None)</code></td>
+<td>Trả <code>{"audio": bytes, "mime": str}</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="quan-tri-admin-api-cua-client-ban-khong-phai-dashboard-manager-cua-station">Quản trị (admin API — của client bạn, không phải dashboard manager của station)</h3>
+<table>
+<thead>
+<tr>
+<th>Hàm</th>
+<th>Mô tả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.list_all_voice_profiles()</code></td>
+<td>Mọi giọng riêng của client bạn</td>
+</tr>
+<tr>
+<td><code>.admin_retrain_voice_model(profile_id)</code></td>
+<td>Huấn luyện lại</td>
+</tr>
+<tr>
+<td><code>.admin_disable_voice_model(profile_id)</code></td>
+<td>Vô hiệu hoá</td>
+</tr>
+<tr>
+<td><code>.admin_delete_voice_model(profile_id)</code></td>
+<td>Xoá hẳn</td>
+</tr>
+<tr>
+<td><code>.get_rvc_endpoint()</code> / <code>.set_rvc_endpoint(endpoint)</code></td>
+<td>Xem/đổi URL Colab RVC (ảnh hưởng <strong>mọi</strong> client dùng chung station)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="thong-bao-webhookpolling">Thông báo (webhook/polling)</h3>
+<table>
+<thead>
+<tr>
+<th>Hàm</th>
+<th>Mô tả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.register_webhook(webhook_url)</code></td>
+<td>An toàn gọi lại mỗi lần app khởi động — chỉ là upsert</td>
+</tr>
+<tr>
+<td><code>.poll_undelivered_notifications(external_user_id)</code></td>
+<td>Thông báo chưa xác nhận (dự phòng khi webhook lỡ thất bại)</td>
+</tr>
+<tr>
+<td><code>.ack_notification(notification_id)</code></td>
+<td>Xác nhận đã nhận, không gửi lại nữa</td>
+</tr>
+</tbody>
+</table>
+<h3 id="hang-so-loi">Hằng số &amp; lỗi</h3>
+<ul>
+<li><code>MIN_TRAIN_SAMPLES = 5</code>, <code>MAX_CLONED_VOICES_PER_USER = 2</code> — bản sao hiển thị của giới hạn phía <code>clone-voice-station</code> (station vẫn tự kiểm tra lại, đây chỉ để host app render UI mà không cần gọi API trước).</li>
+<li><code>VoiceStationError(message, status_code=502)</code> — mọi lỗi giao tiếp với station đều raise lỗi này, <code>message</code> đã là text an toàn để hiển thị thẳng cho người dùng.</li>
+</ul>
+<hr />
+<h2 id="7-cau-truc-thu-muc">7. Cấu Trúc Thư Mục</h2>
+<pre><code>clone-voice-client/
+├── clone_voice_client/
+│   ├── __init__.py       # export VoiceStationClient, VoiceStationError, MIN_TRAIN_SAMPLES, MAX_CLONED_VOICES_PER_USER
+│   ├── client.py          # VoiceStationClient — SDK gọi HTTP tới clone-voice-station
+│   └── local_stt.py        # chế độ Local STT — chạy Whisper trong tiến trình (mục 4)
+└── pyproject.toml          # tên gói: clone-voice-client, extra &quot;local&quot;
+</code></pre>
+<p>Không có <code>app.py</code>, không có <code>examples/</code>, không có <code>tests/</code> — không có gì để chạy độc lập.</p>
+<hr />
+<h2 id="8-xu-ly-su-co">8. Xử Lý Sự Cố</h2>
+<h3 id="pip-install-r-requirementstxt-bao-loi-lien-quan-clone-voice-client"><code>pip install -r requirements.txt</code> báo lỗi liên quan <code>../clone-voice-client</code></h3>
+<p><strong>Nguyên nhân:</strong> thư mục <code>clone-voice-client</code> không nằm cùng cấp với project đang cài (mục 2). <strong>Khắc phục:</strong> đảm bảo cấu trúc 4 thư mục anh em đúng như mục 2, chạy lại <code>pip install</code>.</p>
+<h3 id="goi-transcribe_local-bao-che-o-local-stt-chua-uoc-cai">Gọi <code>transcribe_local()</code> báo "Chế độ local STT chưa được cài"</h3>
+<p><strong>Nguyên nhân:</strong> project đang cài <code>clone-voice-client</code> <strong>không kèm</strong> extra <code>[local]</code> (VD <code>clone-voice-station/requirements.txt</code> cố tình không cài, vì nó không cần). <strong>Khắc phục:</strong> nếu thực sự cần STT local ở project đó, sửa <code>requirements.txt</code> thành <code>-e ../clone-voice-client[local]</code> rồi cài lại.</p>
+<h3 id="sua-code-trong-clone_voice_client-nhung-project-dung-no-khong-thay-thay-oi">Sửa code trong <code>clone_voice_client/</code> nhưng project dùng nó không thấy thay đổi</h3>
+<p><strong>Kiểm tra:</strong> project đó có cài bằng <code>pip install -e ...</code> (editable) không, hay lỡ cài bản đã đóng gói (<code>pip install clone-voice-client</code> từ một wheel cũ). Cài lại bằng đúng dòng <code>-e ../clone-voice-client[local]</code> trong <code>requirements.txt</code> của project đó.</p>
+<h3 id="voicestationerror-khi-goi-bat-ky-ham-nao-transcribe-speak"><code>VoiceStationError</code> khi gọi bất kỳ hàm nào (<code>.transcribe()</code>, <code>.speak()</code>, ...)</h3>
+<p><strong>Nguyên nhân:</strong> <code>clone-voice-station</code> chưa chạy, hoặc API key sai/hết hạn. <strong>Kiểm tra:</strong> xem <code>clone-voice-station/terminal.txt</code> để khởi động service, và xác nhận đúng API key trong file key hoặc biến môi trường <code>VOICE_STATION_API_KEY</code>.</p>
+    <footer>Chuyen doi tu HUONG_DAN_DEMO.md &mdash; xem file goc de biet lich su chinh sua.</footer>
+  </main>
+</div>
+</body>
+</html>
