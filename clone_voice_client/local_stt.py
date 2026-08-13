@@ -191,7 +191,11 @@ def _decode_with_fallback(model, processor, input_features) -> str:
     return best_text  # every temperature in the ladder failed the quality gate -- return the least-bad attempt
 
 
-_HF_MODEL_BY_NAME = {"whisper-tiny": "openai/whisper-tiny", "whisper-base": "openai/whisper-base"}
+_HF_MODEL_BY_NAME = {
+    "phowhisper-small": "vinai/PhoWhisper-small",
+    "whisper-tiny": "openai/whisper-tiny",
+    "whisper-base": "openai/whisper-base",
+}
 _lora_models = {}  # adapter_dir -> (processor, model, device), lazy-loaded per pack
 
 
